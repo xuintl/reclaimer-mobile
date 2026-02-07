@@ -4,7 +4,7 @@
 > **Hackathon 2026 Submission**  
 > *Sustainable. Social. Rewarding.*
 
-*Website Link:* https://xuintl.github.io/reclaimer-mobile/
+Website Link: https://xuintl.github.io/reclaimer-mobile/
 
 ---
 
@@ -135,11 +135,6 @@ reclaimer-mobileapp/
 ├── package.json            # Dependencies and scripts
 └── README.md               # Documentation
 ```
-
----
-
-## 👥 The Team
-**Yaakulya Sabbani** | **Rehnuma Taskin** | **Yiyang Xu**
 
 ---
 *Built with 💚 for the Hackathon.*

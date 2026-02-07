@@ -1,4 +1,5 @@
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
+import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { ArrowRight, CheckCircle, ScanLine, Share2 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
@@ -18,7 +19,12 @@ export default function ScanScreen() {
 
     const [scanning, setScanning] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [scanEnabled, setScanEnabled] = useState(true);
+    const [lastScan, setLastScan] = useState<{ type: string; data: string } | null>(null);
+    const [cameraError, setCameraError] = useState<string | null>(null);
     const [permission, requestPermission] = useCameraPermissions();
+    const isFocused = useIsFocused();
+    const lastScanRef = React.useRef<{ data: string; time: number } | null>(null);
 
     // Bottom Sheet Animation State
     const SCREEN_HEIGHT = height;
@@ -89,20 +95,38 @@ export default function ScanScreen() {
         if (permission && !permission.granted) {
             requestPermission();
         }
-    }, [permission]);
+    }, [permission, requestPermission]);
 
     const handleScan = () => {
+        setScanEnabled(true);
+    };
+
+    const handleBarcodeScanned = ({ data, type }: BarcodeScanningResult) => {
+        if (!scanEnabled || scanning || success) {
+            return;
+        }
+
+        const now = Date.now();
+        if (lastScanRef.current && lastScanRef.current.data === data && now - lastScanRef.current.time < 1500) {
+            return;
+        }
+
+        lastScanRef.current = { data, time: now };
+        setLastScan({ data, type });
+        setScanEnabled(false);
         setScanning(true);
-        // Simulate network delay and processing
+
         setTimeout(() => {
             setScanning(false);
             setSuccess(true);
-        }, 2000);
+        }, 800);
     };
 
     const reset = () => {
         setSuccess(false);
         setScanning(false);
+        setScanEnabled(true);
+        setLastScan(null);
     };
 
     const handleShare = async () => {
@@ -142,6 +166,19 @@ export default function ScanScreen() {
                 >
                     <Text style={{ color: 'white', fontWeight: 'bold' }}>Grant Permission</Text>
                 </TouchableOpacity>
+            </View>
+        );
+    }
+
+    if (cameraError) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+                <Text style={{ textAlign: 'center', marginBottom: 10, color: theme.text, fontSize: 16 }}>
+                    Camera failed to start.
+                </Text>
+                <Text style={{ textAlign: 'center', color: '#9CA3AF', fontSize: 12 }}>
+                    {cameraError}
+                </Text>
             </View>
         );
     }
@@ -199,7 +236,32 @@ export default function ScanScreen() {
     return (
         <View style={styles.container}>
             {/* 1. Camera Layer - Full Screen Background */}
-            <CameraView style={StyleSheet.absoluteFill} facing="back" />
+            <CameraView
+                style={StyleSheet.absoluteFill}
+                facing="back"
+                active={isFocused}
+                barcodeScannerSettings={{
+                    barcodeTypes: [
+                        'qr',
+                        'ean13',
+                        'ean8',
+                        'upc_a',
+                        'upc_e',
+                        'code128',
+                        'code39',
+                        'code93',
+                        'pdf417',
+                        'aztec',
+                        'datamatrix',
+                        'itf14',
+                    ],
+                }}
+                onBarcodeScanned={handleBarcodeScanned}
+                onMountError={(error) => {
+                    const message = (error && 'message' in error && error.message) ? error.message : 'Unknown camera error.';
+                    setCameraError(message);
+                }}
+            />
 
             {/* 2. Scanning Overlay Layer - Absolute on top of Camera */}
             <View style={[styles.overlayContainer, StyleSheet.absoluteFill]} pointerEvents="box-none">
@@ -226,7 +288,7 @@ export default function ScanScreen() {
 
                 {/* Helper Text positioned in the open area */}
                 <Text style={styles.frameText}>
-                    Align QR code within the frame to deposit
+                    Align QR code or barcode within the frame to deposit
                 </Text>
             </View>
 
